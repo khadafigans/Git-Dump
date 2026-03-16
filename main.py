@@ -280,7 +280,7 @@ def main():
     
     # Ask for target URL
     print(f"{C.BOLD}{'='*70}{C.RST}")
-    base_url = input(f"{C.Y}[?] Enter target URL (e.g., https://lsf.go.id): {C.RST}").strip()
+    base_url = input(f"{C.Y}[?] Enter target URL (e.g., https://site.com): {C.RST}").strip()
     
     if not base_url:
         print(f"{C.R}[!] No URL provided{C.RST}")
