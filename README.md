@@ -174,7 +174,7 @@ done
 ```
 Target: https://targeted-site.com
 Found: .git/config with live GitLab token
-Token: glpat-xp2xr-44qfZf4q3RtzB5
+Token: glpat-xp2xr-xxxxxxxxxxxxx
 Impact: Full source code access via GitLab API
 ```
 
