@@ -1,0 +1,176 @@
+Git Repository Secrets Extraction
+Target: https://████████████
+Date: 2026-03-17 00:48:22.432489
+
+======================================================================
+
+FILE: .env
+----------------------------------------------------------------------
+APP_NAME="████"
+APP_ENV=production
+APP_KEY=base64:████████████████████████████████████████████=
+APP_DEBUG=false
+APP_URL=https://████████████
+APP_LOCALE=en
+
+ACTIVE_THEME=████01
+BACKEND_URI=/adm████
+BACKEND_TURBO_ROUTER=false
+CMS_ROUTE_CACHE=false
+CMS_ASSET_CACHE=false
+CMS_SAFE_MODE=false
+LINK_POLICY=detect
+DEFAULT_FILE_MASK=775
+DEFAULT_FOLDER_MASK=775
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=████████db
+DB_USERNAME=admin_████████
+DB_PASSWORD="████████████████"
+
+LOG_LEVEL=error
+LOG_CHANNEL=stack
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_HOST=mailpit
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS=noreply@octobercms.tld
+MAIL_FROM_NAME="${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+
+
+SECRETS FOUND:
+  Password: ████████████████
+
+======================================================================
+
+FILE: composer.json
+----------------------------------------------------------------------
+{
+    "name": "october/october",
+    "description": "Built using October CMS: The Laravel-Based CMS Engineered For Simplicity",
+    "type": "project",
+    "homepage": "https://octobercms.com",
+    "license": "proprietary",
+    "require": {
+        "php": "^8.0.2",
+        "october/rain": "^3.7",
+        "laravel/framework": "^9.0",
+        "october/all": "^3.7",
+        "rainlab/translate-plugin": "^2.2",
+        "blakejones/magicforms-plugin": "^1.6",
+        "skynettechnologies/allinoneaccessibility-plugin": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.5|^9.0"
+    },
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi"
+        ],
+        "post-autoload-dump": [
+            "System\\Console\\ComposerScript::postAutoloadDump"
+        ],
+        "post-update-cmd": [
+            "System\\Console\\ComposerScript::postUpdateCmd"
+        ],
+        "pre-package-uninstall": [
+            "System\\Console\\ComposerScript::prePackageUninstall"
+        ],
+        "test": [
+            "phpunit --stop-on-failure"
+        ]
+    },
+    "config": {
+        "preferred-install": "dist",
+        "allow-plugins": {
+            "composer/installers": true
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "System\\Console\\": "modules/system/console"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "repositories": {
+        "octobercms": {
+            "type": "composer",
+            "url": "https://gateway.octobercms.com",
+            "only": ["october/*", "*-plugin", "*-theme"]
+        }
+    }
+}
+
+
+======================================================================
+
+FILE: package.json
+----------------------------------------------------------------------
+{
+    "name": "octobercms",
+    "homepage": "https://octobercms.com/",
+    "description": "October CMS is a self-hosted CMS platform based on the Laravel PHP Framework.",
+    "scripts": {
+        "dev": "npm run development",
+        "development": "mix",
+        "watch": "mix watch",
+        "watch-poll": "mix watch -- --watch-options-poll=1000",
+        "hot": "mix watch --hot",
+        "prod": "npm run production",
+        "production": "mix --production"
+    },
+    "devDependencies": {
+        "babel-plugin-module-resolver": "^4.1.0",
+        "laravel-mix": "^6.0.39",
+        "less": "^4.1.2",
+        "less-loader": "^10.2.0",
+        "sass": "^1.45.0",
+        "sass-loader": "^12.1.0"
+    },
+    "dependencies": {
+        "@popperjs/core": "^2.11.7",
+        "bluebird": "^3.7.2",
+        "bootstrap": "^5.3.3",
+        "bootstrap-icons": "^1.10",
+        "chart.js": "^4.3.2",
+        "chartjs-adapter-moment": "^1.0.1",
+        "dropzone": "^6.0.0-beta.2",
+        "emmet-monaco-es": "^5.3",
+        "jquery": "^3.6.0",
+        "js-cookie": "^3.0.1",
+        "moment": "^2.30.1",
+        "moment-timezone": "^0.5.46",
+        "monaco-editor": "^0.46.0",
+        "monaco-yaml": "^5.1.1",
+        "popper.js": "^1.16.1",
+        "sortablejs": "^1.15.0",
+        "vue": "^2.6.14",
+        "vue-router": "^3.5.3"
+    }
+}
+
+
+======================================================================
