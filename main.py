@@ -120,20 +120,72 @@ def parse_git_index(base_url):
         print(f"{C.R}[!] Cannot access .git/index{C.RST}")
         return []
     
+    # Verify Git index signature
+    if len(index_data) < 12 or index_data[:4] != b'DIRC':
+        print(f"{C.R}[!] Invalid Git index file (missing DIRC signature){C.RST}")
+        return []
+    
     print(f"{C.G}[+] .git/index found! Parsing file list...{C.RST}\n")
     
     files = []
     
-    # Git index format: complex binary, but file paths are null-terminated strings
-    # Simple extraction: find printable paths
-    index_str = index_data.decode('latin1', errors='ignore')
-    
-    # Find potential file paths (alphanumeric + common path chars)
-    potential_paths = re.findall(r'([a-zA-Z0-9_/.-]{3,100}\.(?:php|js|json|env|yml|yaml|xml|txt|md|sql|sh|py|rb|java|go|ts|tsx|jsx|vue|config|ini|conf))', index_str)
-    
-    for path in potential_paths:
-        if path not in files and '/' in path:
-            files.append(path)
+    try:
+        # Git index v2/v3 format
+        # Header: DIRC (4 bytes) + version (4 bytes) + entry count (4 bytes)
+        import struct
+        
+        version = struct.unpack('>I', index_data[4:8])[0]
+        entry_count = struct.unpack('>I', index_data[8:12])[0]
+        
+        if version not in [2, 3, 4]:
+            print(f"{C.Y}[~] Unsupported index version: {version}{C.RST}")
+            return []
+        
+        if entry_count > 10000:  # Sanity check
+            print(f"{C.Y}[~] Suspicious entry count: {entry_count} (possible corrupted index){C.RST}")
+            return []
+        
+        offset = 12
+        
+        for i in range(entry_count):
+            if offset + 62 > len(index_data):
+                break
+            
+            # Each entry has a fixed 62-byte header
+            # Skip to flags at offset+60 to get name length
+            flags = struct.unpack('>H', index_data[offset+60:offset+62])[0]
+            name_length = flags & 0xFFF
+            
+            # File name starts at offset+62
+            name_start = offset + 62
+            
+            if name_length == 0xFFF:
+                # Name is null-terminated
+                name_end = index_data.find(b'\x00', name_start)
+                if name_end == -1:
+                    break
+                file_name = index_data[name_start:name_end].decode('utf-8', errors='ignore')
+            else:
+                # Name has fixed length
+                name_end = name_start + name_length
+                if name_end > len(index_data):
+                    break
+                file_name = index_data[name_start:name_end].decode('utf-8', errors='ignore')
+            
+            # Validate file name (basic sanity check)
+            if file_name and 1 <= len(file_name) <= 500 and not any(c in file_name for c in ['\x00', '\r', '\n']):
+                files.append(file_name)
+            
+            # Calculate padding to next entry (entries are padded to 8-byte boundary)
+            entry_len = 62 + len(file_name.encode('utf-8'))
+            padding = (8 - (entry_len % 8)) % 8
+            offset = offset + entry_len + padding
+        
+        print(f"{C.G}[+] Successfully parsed {len(files)} entries from index{C.RST}")
+        
+    except Exception as e:
+        print(f"{C.R}[!] Error parsing index: {str(e)}{C.RST}")
+        return []
     
     return files
 
@@ -168,13 +220,19 @@ def download_git_objects(base_url, hostname):
 
 def view_file_content(base_url, filepath):
     """Try to fetch file content directly"""
-    # Try direct access first
     url = f"{base_url}/{filepath}"
     
     try:
         resp = requests.get(url, timeout=10, verify=False)
         if resp.status_code == 200:
-            return resp.text
+            content = resp.text
+            
+            # Detect if we got HTML error page instead of actual file
+            html_indicators = ['<!DOCTYPE', '<html', '<HTML', '<head>', '<body>', '<title>404', '<title>Error']
+            if any(indicator in content[:500] for indicator in html_indicators):
+                return None
+            
+            return content
     except:
         pass
     
@@ -307,6 +365,79 @@ def main():
     if not config_info:
         print(f"{C.R}[!] .git directory not accessible{C.RST}")
         sys.exit(1)
+    
+    # Step 2: Verify if repo is actually exploitable by checking index
+    print(f"{C.Y}[*] Verifying repository accessibility...{C.RST}")
+    test_index = fetch_git_file(base_url, "index")
+    
+    repo_exploitable = False
+    
+    if not test_index or len(test_index) < 12 or test_index[:4] != b'DIRC':
+        print(f"{C.R}[!] WARNING: .git/config is exposed but .git/index is NOT accessible{C.RST}")
+        print(f"{C.Y}[~] The credentials in .git/config may still be valid, but you cannot dump the repo{C.RST}")
+        print(f"{C.Y}[~] This is a FALSE POSITIVE for repository dumping{C.RST}\n")
+        print(f"{C.Y}[*] You can still try option 6 (common files) to check for exposed files{C.RST}")
+    else:
+        # Index exists, but verify we can actually fetch files from it
+        print(f"{C.Y}[*] .git/index found, verifying file accessibility...{C.RST}")
+        
+        # Quick parse to get a few file paths
+        try:
+            import struct
+            entry_count = struct.unpack('>I', test_index[8:12])[0]
+            
+            if entry_count > 0 and entry_count < 10000:
+                # Try to extract first file path
+                offset = 12
+                files_to_test = []
+                
+                for i in range(min(5, entry_count)):  # Test first 5 files
+                    if offset + 62 > len(test_index):
+                        break
+                    
+                    flags = struct.unpack('>H', test_index[offset+60:offset+62])[0]
+                    name_length = flags & 0xFFF
+                    name_start = offset + 62
+                    
+                    if name_length == 0xFFF:
+                        name_end = test_index.find(b'\x00', name_start)
+                        if name_end == -1:
+                            break
+                        file_name = test_index[name_start:name_end].decode('utf-8', errors='ignore')
+                    else:
+                        name_end = name_start + name_length
+                        if name_end > len(test_index):
+                            break
+                        file_name = test_index[name_start:name_end].decode('utf-8', errors='ignore')
+                    
+                    if file_name and len(file_name) > 0:
+                        files_to_test.append(file_name)
+                    
+                    entry_len = 62 + len(file_name.encode('utf-8'))
+                    padding = (8 - (entry_len % 8)) % 8
+                    offset = offset + entry_len + padding
+                
+                # Try to fetch at least one file
+                accessible_count = 0
+                for test_file in files_to_test:
+                    content = view_file_content(base_url, test_file)
+                    if content:
+                        accessible_count += 1
+                
+                if accessible_count > 0:
+                    print(f"{C.G}[+] Repository is fully accessible and exploitable!{C.RST}")
+                    print(f"{C.G}[+] Verified {accessible_count}/{len(files_to_test)} test files are accessible{C.RST}\n")
+                    repo_exploitable = True
+                else:
+                    print(f"{C.R}[!] WARNING: .git/index exists but source files are NOT accessible{C.RST}")
+                    print(f"{C.Y}[~] Index lists {entry_count} files, but they cannot be downloaded directly{C.RST}")
+                    print(f"{C.Y}[~] This is a PARTIAL exposure - you may need git-dumper to extract via objects{C.RST}")
+                    print(f"{C.Y}[~] Credentials in .git/config are still valid{C.RST}\n")
+                    print(f"{C.Y}[*] Try option 1 (Download repository) or option 6 (common files){C.RST}")
+            else:
+                print(f"{C.R}[!] Invalid entry count in .git/index{C.RST}\n")
+        except Exception as e:
+            print(f"{C.R}[!] Error validating repository: {str(e)}{C.RST}\n")
     
     while True:
         choice = interactive_menu()
