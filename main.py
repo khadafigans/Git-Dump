@@ -1184,6 +1184,25 @@ def main():
             found = try_common_files(base_url)
             if found:
                 print(f"{C.G}✓ Found {len(found)} sensitive files{C.RST}\n")
+                
+                # Save common files found
+                result_file = f"{output_dir}/git_dump_{hostname}.txt"
+                with open(result_file, 'a', encoding='utf-8') as f:
+                    f.write("QUICK SCAN - COMMON SENSITIVE FILES\n")
+                    f.write("-"*70 + "\n")
+                    for item in found:
+                        f.write(f"\nFILE: {item['path']}\n")
+                        f.write(f"URL: {base_url}/{item['path']}\n")
+                        f.write(f"Size: {len(item['content'])} bytes\n")
+                        f.write("-"*70 + "\n")
+                        f.write(item['content'][:5000])
+                        f.write("\n")
+                        
+                        if item['secrets']:
+                            f.write("\nSECRETS FOUND:\n")
+                            for secret in item['secrets']:
+                                f.write(f"  {secret['type']}: {secret['value']}\n")
+                        f.write("\n" + "="*70 + "\n")
             else:
                 print(f"{C.Y}✓ No common files exposed{C.RST}\n")
             
